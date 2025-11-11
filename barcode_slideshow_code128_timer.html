@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Barcode Slideshow — Code128</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2b;
+      --muted:#97a6c1;
+      --text:#e7ecf5;
+      --accent:#d4af37;
+      --accent-2:#b48b16;
+      --danger:#ff5a5f;
+      --ok:#33d69f;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:"Poppins",system-ui,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(180deg,var(--bg),#0c1426 60%); color:var(--text);
+    }
+    .container{max-width:1100px; margin:0 auto; padding:24px; display:grid; gap:20px; grid-template-columns: 420px 1fr; align-items:stretch;}
+    header{grid-column:1/-1; display:flex; justify-content:space-between; align-items:center}
+    .brand{font-weight:600; letter-spacing:.4px}
+    .brand span{color:var(--accent)}
+    .panel{background:linear-gradient(180deg,var(--panel),#0e182b); border:1px solid rgba(212,175,55,.18); border-radius:18px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);}
+    textarea{width:100%; min-height:260px; resize:vertical; background:#0a1222; color:var(--text); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px; line-height:1.5; outline:none; transition:.2s border-color,.2s box-shadow;}
+    textarea:focus{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+    .hint{font-size:.9rem; color:var(--muted)}
+    .controls{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px}
+    button{appearance:none; border:none; border-radius:12px; padding:10px 14px; font-weight:600; cursor:pointer; color:#0a0e16; background:linear-gradient(180deg,var(--accent),var(--accent-2)); box-shadow:0 6px 16px rgba(212,175,55,.35); transition:transform .06s ease, filter .2s ease, opacity .2s ease;}
+    button:active{transform:translateY(1px)}
+    button.ghost{background:transparent; color:var(--text); border:1px solid rgba(255,255,255,.16)}
+    button.red{background:linear-gradient(180deg,var(--danger),#d94a50); color:white; box-shadow:0 6px 16px rgba(255,90,95,.3)}
+    .display{display:grid; grid-template-rows:auto 1fr auto; align-items:center; justify-items:center; text-align:center; gap:14px; min-height:420px;}
+    .barcode-wrap{display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:radial-gradient(ellipse at 50% 30%, rgba(212,175,55,.10), transparent 60%); border-radius:16px; border:1px solid rgba(255,255,255,.06);}
+    svg#barcode{width:min(92%,980px); height:auto}
+    .meta{display:flex; align-items:center; gap:12px; color:var(--muted)}
+    .meta .dot{width:8px; height:8px; border-radius:50%}
+    .meta .dot.live{background:var(--ok); box-shadow:0 0 10px var(--ok)}
+    .index{font-weight:600; color:var(--text)}
+    .current-text{font-weight:600; color:var(--accent)}
+    input[type=number]{width:90px; padding:6px; border-radius:10px; border:1px solid rgba(255,255,255,.1); background:#0a1222; color:var(--text);}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">Barcode <span>Slideshow</span> — Code128</div>
+      <div class="meta">
+        <div class="dot" id="liveDot"></div>
+        <span id="statusText">Paused</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <label for="codes" style="display:block; font-weight:600; margin-bottom:8px">Codes (one per line)</label>
+      <textarea id="codes" placeholder="Example:
+A12345
+BOX-0091
+Shipment-2025
+..."></textarea>
+      <div style="margin-top:10px; display:flex; align-items:center; gap:10px">
+        <label for="timeInput" class="hint">Time per slide (seconds):</label>
+        <input type="number" id="timeInput" value="5" min="1" max="60" />
+      </div>
+      <div class="controls">
+        <button id="playBtn">Play</button>
+        <button id="pauseBtn" class="ghost">Pause</button>
+        <button id="prevBtn" class="ghost">◀ Prev</button>
+        <button id="nextBtn" class="ghost">Next ▶</button>
+        <button id="clearBtn" class="red">Clear</button>
+        <button id="fsBtn" class="ghost">Fullscreen</button>
+      </div>
+    </section>
+
+    <section class="panel display" id="displayPanel">
+      <span class="index" id="indexLabel">0 / 0</span>
+      <div class="barcode-wrap"><svg id="barcode"></svg></div>
+      <div class="current-text" id="currentText">—</div>
+    </section>
+  </div>
+
+  <script>
+    const ta=document.getElementById('codes');
+    const barcodeSvg=document.getElementById('barcode');
+    const currentText=document.getElementById('currentText');
+    const indexLabel=document.getElementById('indexLabel');
+    const liveDot=document.getElementById('liveDot');
+    const statusText=document.getElementById('statusText');
+    const playBtn=document.getElementById('playBtn');
+    const pauseBtn=document.getElementById('pauseBtn');
+    const nextBtn=document.getElementById('nextBtn');
+    const prevBtn=document.getElementById('prevBtn');
+    const clearBtn=document.getElementById('clearBtn');
+    const fsBtn=document.getElementById('fsBtn');
+    const displayPanel=document.getElementById('displayPanel');
+    const timeInput=document.getElementById('timeInput');
+
+    let timer=null; let codes=[]; let idx=0; let slideTime=5000;
+
+    function sanitize(lines){return lines.map(s=>(s||'').trim()).filter(s=>s.length>0);}
+    function loadFromLocal(){const saved=localStorage.getItem('barcode_lines_v1'); if(saved) ta.value=saved; refreshCodes();}
+    function saveToLocal(){localStorage.setItem('barcode_lines_v1',ta.value);}
+    function refreshCodes(){codes=sanitize(ta.value.split(/\r?\n/)); if(idx>=codes.length) idx=Math.max(0,codes.length-1); render();}
+    function render(){const total=codes.length; indexLabel.textContent=total?`${idx+1} / ${total}`:'0 / 0'; const text=total?codes[idx]:'—'; currentText.textContent=text; while(barcodeSvg.firstChild) barcodeSvg.removeChild(barcodeSvg.firstChild); if(total){JsBarcode(barcodeSvg,text,{format:'code128',displayValue:true,font:'Poppins',fontSize:24,margin:18,lineColor:'#e7ecf5',background:'transparent',width:2.2,height:160});} else {const note=document.createElementNS('http://www.w3.org/2000/svg','text'); note.setAttribute('x','50%'); note.setAttribute('y','50%'); note.setAttribute('text-anchor','middle'); note.setAttribute('fill','#9fb3d4'); note.textContent='Enter codes at the left — one per line'; barcodeSvg.appendChild(note);}}
+    function play(){if(!codes.length) return; if(timer) return; statusText.textContent='Playing'; liveDot.classList.add('live'); timer=setInterval(()=>{idx=(idx+1)%codes.length; render();},slideTime);}
+    function pause(){if(timer){clearInterval(timer); timer=null;} statusText.textContent='Paused'; liveDot.classList.remove('live');}
+    function next(){if(!codes.length) return; idx=(idx+1)%codes.length; render();}
+    function prev(){if(!codes.length) return; idx=(idx-1+codes.length)%codes.length; render();}
+    function clearAll(){pause(); ta.value=''; saveToLocal(); refreshCodes();}
+    function toggleFullscreen(){if(!document.fullscreenElement) displayPanel.requestFullscreen(); else document.exitFullscreen();}
+    playBtn.onclick=play; pauseBtn.onclick=pause; nextBtn.onclick=next; prevBtn.onclick=prev; clearBtn.onclick=clearAll; fsBtn.onclick=toggleFullscreen;
+    ta.oninput=()=>{saveToLocal(); refreshCodes();};
+    timeInput.onchange=()=>{slideTime=parseInt(timeInput.value)*1000; if(timer){pause(); play();}};
+    document.onkeydown=e=>{if(e.target===ta) return; if(e.code==='Space'){e.preventDefault(); timer?pause():play();} if(e.code==='ArrowRight') next(); if(e.code==='ArrowLeft') prev();};
+    loadFromLocal();
+  </script>
+</body>
+</html>
